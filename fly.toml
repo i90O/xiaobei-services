@@ -1,0 +1,41 @@
+# fly.toml - 小北服务 Fly.io 配置
+# xiaobei-services v0.3.0
+# Deploy: fly launch / fly deploy
+
+app = "xiaobei-services"
+primary_region = "sjc"  # San Jose (close to US West + Asia)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+
+# Secrets (set via `fly secrets set`):
+# PAYTO_ADDRESS=0x...
+# PRIVATE_KEY=... (if needed for signing)
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

@@ -1,0 +1,13 @@
+# .dockerignore for xiaobei-services
+node_modules
+npm-debug.log
+Dockerfile
+.dockerignore
+.git
+.gitignore
+README.md
+.env
+.env.*
+*.md
+fly.toml
+vercel.json
