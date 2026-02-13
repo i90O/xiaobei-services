@@ -14,11 +14,11 @@ const app = express();
 app.use(express.json());
 
 // ===== 配置 =====
-// TODO: 替换为真实的收款地址
-const PAYTO_ADDRESS = process.env.PAYTO_ADDRESS || '0x0000000000000000000000000000000000000000';
+// 小北的真实钱包地址 (Base Mainnet)
+const PAYTO_ADDRESS = process.env.PAYTO_ADDRESS || '0xda53D50572B8124A6B9d6d147d532Db59ABe0610';
 
-// 使用 Base Sepolia 测试网 (eip155:84532)
-const NETWORK = 'eip155:84532';
+// 使用 Base 主网
+const NETWORK = 'base';
 
 // 设置 facilitator 和 resource server
 const facilitatorClient = new HTTPFacilitatorClient({ 
@@ -62,7 +62,7 @@ const routes = {
 // 应用支付中间件
 app.use(paymentMiddleware(routes, resourceServer, {
   appName: '小北的服务',
-  testnet: true,
+  testnet: false, // 主网！
 }));
 
 // ===== 服务实现 =====
@@ -323,6 +323,11 @@ app.post('/summarize', (req, res) => {
     compressionRatio: text.length > 0 ? (summary.length / text.length * 100).toFixed(1) + '%' : '0%',
     paid: true,
   });
+});
+
+// Health check (免费)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // 服务目录 (免费访问)

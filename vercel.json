@@ -3,14 +3,14 @@
   "name": "xiaobei-services",
   "builds": [
     {
-      "src": "server-x402.js",
+      "src": "server.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "server-x402.js"
+      "dest": "server.js"
     }
   ],
   "env": {
