@@ -193,9 +193,15 @@ app.post("/summarize", payment, (req, res) => {
   res.json({ summary, compressionRatio, paid: true });
 });
 
-const PORT = process.env.PORT || 3402;
-app.listen(PORT, () => {
-  console.log(`🧭 小北的x402服务运行在 http://localhost:${PORT}`);
-  console.log(`💰 收款地址: ${PAY_TO}`);
-  console.log(`🔗 网络: Base Mainnet`);
-});
+// 本地开发
+if (require.main === module) {
+  const PORT = process.env.PORT || 3402;
+  app.listen(PORT, () => {
+    console.log(`🧭 小北的x402服务运行在 http://localhost:${PORT}`);
+    console.log(`💰 收款地址: ${PAY_TO}`);
+    console.log(`🔗 网络: Base Mainnet`);
+  });
+}
+
+// Vercel serverless export
+module.exports = app;
