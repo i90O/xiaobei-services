@@ -9,6 +9,7 @@ const express = require('express');
 const { paymentMiddleware, x402ResourceServer } = require('@x402/express');
 const { HTTPFacilitatorClient } = require('@x402/core/server');
 const { ExactEvmScheme } = require('@x402/evm/exact/server');
+const { bazaarResourceServerExtension, declareDiscoveryExtension } = require('@x402/extensions/bazaar');
 
 const app = express();
 app.use(express.json());
@@ -28,9 +29,12 @@ const facilitatorClient = new HTTPFacilitatorClient({
 const resourceServer = new x402ResourceServer(facilitatorClient)
   .register(NETWORK, new ExactEvmScheme());
 
-// ===== 路由配置 =====
+// Register bazaar extension for discovery
+resourceServer.registerExtension(bazaarResourceServerExtension);
+
+// ===== 路由配置 (with bazaar discovery) =====
 const routes = {
-  'POST /translate': {
+  'POST /api/translate': {
     accepts: {
       scheme: 'exact',
       price: '$0.001',  // 0.1 美分
@@ -38,8 +42,24 @@ const routes = {
       payTo: PAYTO_ADDRESS,
     },
     description: '中英双语翻译 (Chinese-English Translation)',
+    extensions: {
+      ...declareDiscoveryExtension({
+        input: {
+          bodyFields: {
+            text: { type: 'string', description: 'Text to translate', required: true },
+            from: { type: 'string', description: 'Source language (auto/en/zh)' },
+            to: { type: 'string', description: 'Target language (en/zh)' },
+          },
+        },
+        output: {
+          translated: { type: 'string' },
+          from: { type: 'string' },
+          to: { type: 'string' },
+        },
+      }),
+    },
   },
-  'POST /code-review': {
+  'POST /api/code-review': {
     accepts: {
       scheme: 'exact',
       price: '$0.01',   // 1 美分
@@ -47,8 +67,24 @@ const routes = {
       payTo: PAYTO_ADDRESS,
     },
     description: '代码质量审查 (Code Quality Review)',
+    extensions: {
+      ...declareDiscoveryExtension({
+        input: {
+          bodyFields: {
+            code: { type: 'string', description: 'Code to review', required: true },
+            language: { type: 'string', description: 'Programming language (default: javascript)' },
+          },
+        },
+        output: {
+          issues: { type: 'array', description: 'List of issues found' },
+          suggestions: { type: 'array', description: 'Improvement suggestions' },
+          score: { type: 'number', description: 'Quality score 0-100' },
+          grade: { type: 'string', description: 'Letter grade A-F' },
+        },
+      }),
+    },
   },
-  'POST /summarize': {
+  'POST /api/summarize': {
     accepts: {
       scheme: 'exact',
       price: '$0.005',  // 0.5 美分
@@ -56,6 +92,20 @@ const routes = {
       payTo: PAYTO_ADDRESS,
     },
     description: '长文本摘要 (Text Summarization)',
+    extensions: {
+      ...declareDiscoveryExtension({
+        input: {
+          bodyFields: {
+            text: { type: 'string', description: 'Text to summarize', required: true },
+            maxLength: { type: 'number', description: 'Maximum summary length (default: 200)' },
+          },
+        },
+        output: {
+          summary: { type: 'string' },
+          compressionRatio: { type: 'string' },
+        },
+      }),
+    },
   },
 };
 
@@ -116,7 +166,7 @@ function containsChinese(text) {
 }
 
 // 翻译服务 - 带真实 mock 逻辑
-app.post('/translate', (req, res) => {
+app.post('/api/translate', (req, res) => {
   const { text, from = 'auto', to = 'en' } = req.body;
   
   if (!text) {
@@ -166,7 +216,7 @@ app.post('/translate', (req, res) => {
 });
 
 // 代码审查服务 - 带真实静态分析
-app.post('/code-review', (req, res) => {
+app.post('/api/code-review', (req, res) => {
   const { code, language = 'javascript' } = req.body;
   
   if (!code) {
@@ -270,7 +320,7 @@ app.post('/code-review', (req, res) => {
 });
 
 // 摘要服务 - 带真实提取逻辑
-app.post('/summarize', (req, res) => {
+app.post('/api/summarize', (req, res) => {
   const { text, maxLength = 200 } = req.body;
   
   if (!text) {
@@ -335,27 +385,30 @@ app.get('/', (req, res) => {
   res.json({
     name: '小北的服务',
     description: '🧭 AI-powered services with x402 payments',
-    version: '0.3.0',
+    version: '0.4.1',
     network: NETWORK,
     payTo: PAYTO_ADDRESS,
     services: [
       {
         name: 'translate',
-        endpoint: 'POST /translate',
+        endpoint: 'POST /api/translate',
         description: '中英双语翻译',
         price: '$0.001 USDC',
+        discoverable: true,
       },
       {
         name: 'code-review',
-        endpoint: 'POST /code-review',
+        endpoint: 'POST /api/code-review',
         description: '代码质量审查',
         price: '$0.01 USDC',
+        discoverable: true,
       },
       {
         name: 'summarize',
-        endpoint: 'POST /summarize',
+        endpoint: 'POST /api/summarize',
         description: '长文本摘要',
         price: '$0.005 USDC',
+        discoverable: true,
       },
     ],
     agent: {
