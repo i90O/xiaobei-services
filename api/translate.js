@@ -4,8 +4,6 @@
  * Price: $0.001 USDC
  */
 
-const { paymentMiddleware } = require("x402-express");
-
 const PAY_TO = "0xda53D50572B8124A6B9d6d147d532Db59ABe0610";
 
 // 简单词典
@@ -17,44 +15,29 @@ const dict = {
   "payment": "支付", "支付": "payment", "blockchain": "区块链", "区块链": "blockchain",
 };
 
-// x402 支付配置
-const payment = paymentMiddleware(PAY_TO, {
-  "POST /api/translate": {
-    price: "$0.001",
-    network: "base",
-    config: {
-      description: "中英双语翻译 (Chinese-English Translation)",
-    },
-  },
-});
-
-// Serverless handler
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // 检查 x402 支付 header
   const paymentHeader = req.headers["x-payment"] || req.headers["x402-payment"];
   
   if (!paymentHeader) {
-    // 返回 402 Payment Required
     return res.status(402).json({
       error: "Payment Required",
       x402: {
         accepts: [{
           scheme: "exact",
           network: "base",
-          maxAmountRequired: "1000", // $0.001 = 1000 micro USDC
-          resource: `https://xiaobei-services.vercel.app/api/translate`,
+          maxAmountRequired: "1000",
+          resource: "https://xiaobei-services.vercel.app/api/translate",
           payTo: PAY_TO,
-          description: "中英双语翻译",
+          description: "中英双语翻译 (Chinese-English Translation)",
         }],
       },
     });
   }
 
-  // 有支付信息，处理请求
   const { text, from = "auto", to = "en" } = req.body || {};
   
   if (!text) {
