@@ -5,27 +5,48 @@
  */
 
 const PAY_TO = "0xda53D50572B8124A6B9d6d147d532Db59ABe0610";
+const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const paymentHeader = req.headers["x-payment"] || req.headers["x402-payment"];
+  const paymentHeader = req.headers["x-payment"];
   
   if (!paymentHeader) {
     return res.status(402).json({
-      error: "Payment Required",
-      x402: {
-        accepts: [{
-          scheme: "exact",
-          network: "base",
-          maxAmountRequired: "10000", // $0.01 = 10000 micro USDC
-          resource: `https://xiaobei-services.vercel.app/api/code-review`,
-          payTo: PAY_TO,
-          description: "静态代码审查 - 检测常见问题和安全漏洞",
-        }],
-      },
+      x402Version: 1,
+      error: "X-PAYMENT header is required",
+      accepts: [{
+        scheme: "exact",
+        network: "base",
+        maxAmountRequired: "10000", // $0.01
+        resource: "https://xiaobei-services.vercel.app/api/code-review",
+        description: "静态代码审查 - 检测常见问题和安全漏洞",
+        mimeType: "application/json",
+        payTo: PAY_TO,
+        maxTimeoutSeconds: 60,
+        asset: USDC_BASE,
+        outputSchema: {
+          input: {
+            type: "http",
+            method: "POST",
+            discoverable: true,
+            bodyFields: {
+              code: { type: "string", description: "Code to review", required: true },
+              language: { type: "string", description: "Programming language" },
+            },
+          },
+          output: {
+            score: { type: "number" },
+            grade: { type: "string" },
+            issues: { type: "array" },
+            suggestions: { type: "array" },
+          },
+        },
+        extra: { name: "USD Coin", version: "2" },
+      }],
     });
   }
 
@@ -39,28 +60,24 @@ module.exports = async (req, res) => {
   const suggestions = [];
   let score = 100;
 
-  // 检查 console.log
   const consoleMatches = code.match(/console\.(log|warn|error)/g);
   if (consoleMatches) {
     issues.push(`Found ${consoleMatches.length} console statement(s)`);
     score -= consoleMatches.length * 3;
   }
 
-  // 检查 TODO
   const todoMatches = code.match(/(TODO|FIXME|XXX)/gi);
   if (todoMatches) {
     issues.push(`Found ${todoMatches.length} TODO/FIXME comment(s)`);
     score -= todoMatches.length * 2;
   }
 
-  // 检查硬编码密钥
   if (/password\s*[:=]\s*['"][^'"]+['"]/i.test(code) || 
       /api[_-]?key\s*[:=]\s*['"][^'"]+['"]/i.test(code)) {
     issues.push("⚠️ Potential hardcoded credentials");
     score -= 20;
   }
 
-  // 检查 debugger
   if (/\bdebugger\b/.test(code)) {
     issues.push("debugger statement found");
     score -= 10;

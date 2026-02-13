@@ -5,27 +5,46 @@
  */
 
 const PAY_TO = "0xda53D50572B8124A6B9d6d147d532Db59ABe0610";
+const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const paymentHeader = req.headers["x-payment"] || req.headers["x402-payment"];
+  const paymentHeader = req.headers["x-payment"];
   
   if (!paymentHeader) {
     return res.status(402).json({
-      error: "Payment Required",
-      x402: {
-        accepts: [{
-          scheme: "exact",
-          network: "base",
-          maxAmountRequired: "5000", // $0.005 = 5000 micro USDC
-          resource: `https://xiaobei-services.vercel.app/api/summarize`,
-          payTo: PAY_TO,
-          description: "文本摘要生成",
-        }],
-      },
+      x402Version: 1,
+      error: "X-PAYMENT header is required",
+      accepts: [{
+        scheme: "exact",
+        network: "base",
+        maxAmountRequired: "5000", // $0.005
+        resource: "https://xiaobei-services.vercel.app/api/summarize",
+        description: "文本摘要生成 - 快速提取核心内容",
+        mimeType: "application/json",
+        payTo: PAY_TO,
+        maxTimeoutSeconds: 60,
+        asset: USDC_BASE,
+        outputSchema: {
+          input: {
+            type: "http",
+            method: "POST",
+            discoverable: true,
+            bodyFields: {
+              text: { type: "string", description: "Text to summarize", required: true },
+              maxLength: { type: "number", description: "Max summary length" },
+            },
+          },
+          output: {
+            summary: { type: "string" },
+            compressionRatio: { type: "string" },
+          },
+        },
+        extra: { name: "USD Coin", version: "2" },
+      }],
     });
   }
 

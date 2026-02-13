@@ -5,6 +5,7 @@
  */
 
 const PAY_TO = "0xda53D50572B8124A6B9d6d147d532Db59ABe0610";
+const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 // 简单词典
 const dict = {
@@ -20,24 +21,46 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const paymentHeader = req.headers["x-payment"] || req.headers["x402-payment"];
+  const paymentHeader = req.headers["x-payment"];
   
   if (!paymentHeader) {
+    // 标准 x402 响应格式
     return res.status(402).json({
-      error: "Payment Required",
-      x402: {
-        accepts: [{
-          scheme: "exact",
-          network: "base",
-          maxAmountRequired: "1000",
-          resource: "https://xiaobei-services.vercel.app/api/translate",
-          payTo: PAY_TO,
-          description: "中英双语翻译 (Chinese-English Translation)",
-        }],
-      },
+      x402Version: 1,
+      error: "X-PAYMENT header is required",
+      accepts: [{
+        scheme: "exact",
+        network: "base",
+        maxAmountRequired: "1000", // $0.001 = 1000 micro USDC (6 decimals)
+        resource: "https://xiaobei-services.vercel.app/api/translate",
+        description: "中英双语翻译 (Chinese-English Translation)",
+        mimeType: "application/json",
+        payTo: PAY_TO,
+        maxTimeoutSeconds: 60,
+        asset: USDC_BASE,
+        outputSchema: {
+          input: {
+            type: "http",
+            method: "POST",
+            discoverable: true,
+            bodyFields: {
+              text: { type: "string", description: "Text to translate", required: true },
+              from: { type: "string", description: "Source language (auto/en/zh)" },
+              to: { type: "string", description: "Target language (en/zh)" },
+            },
+          },
+          output: {
+            translated: { type: "string" },
+            from: { type: "string" },
+            to: { type: "string" },
+          },
+        },
+        extra: { name: "USD Coin", version: "2" },
+      }],
     });
   }
 
+  // TODO: 验证支付
   const { text, from = "auto", to = "en" } = req.body || {};
   
   if (!text) {
@@ -50,10 +73,5 @@ module.exports = async (req, res) => {
   const lower = text.toLowerCase().trim();
   const translated = dict[lower] || dict[text] || `[翻译] ${text}`;
 
-  res.json({
-    translated,
-    from: detectedFrom,
-    to,
-    paid: true,
-  });
+  res.json({ translated, from: detectedFrom, to, paid: true });
 };
